@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adams Apples — Orchard Management Platform</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+
+  :root {
+    --bg-base:        #06101e;
+    --bg-sidebar:     #09152a;
+    --bg-card:        #0d1e34;
+    --bg-input:       #071222;
+    --border:         #16304f;
+    --border-subtle:  #0f2540;
+    --accent:         #10b981;
+    --accent-hover:   #059669;
+    --accent-dim:     rgba(16,185,129,0.10);
+    --accent-glow:    rgba(16,185,129,0.20);
+    --text-primary:   #e8f1ff;
+    --text-secondary: #6e8fb5;
+    --text-muted:     #364f6e;
+    --blue:           #3b82f6;
+    --yellow:         #f59e0b;
+    --red:            #ef4444;
+    --shadow-sm:      0 1px 4px rgba(0,0,0,.35);
+    --shadow-md:      0 4px 18px rgba(0,0,0,.50);
+    --shadow-lg:      0 12px 40px rgba(0,0,0,.65);
+    --radius:         10px;
+    --radius-lg:      14px;
+    --transition:     all 0.18s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 256px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 24px rgba(0,0,0,.40);
+    position: relative;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    padding: 20px 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .sidebar-section-label {
+    padding: 14px 20px 6px;
+    font-size: 9.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    font-weight: 700;
+  }
+
+  .sidebar-item {
+    padding: 9px 16px 9px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition);
+    border-left: 2px solid transparent;
+    font-size: 13.5px;
+    font-weight: 450;
+    color: var(--text-secondary);
+    margin: 1px 0;
+  }
+  .sidebar-item:hover {
+    background: rgba(255,255,255,.04);
+    color: var(--text-primary);
+    border-left-color: var(--border);
+  }
+  .sidebar-item.active {
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 550;
+  }
+  .sidebar-item .icon {
+    font-size: 15px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 36px;
+    background: var(--bg-base);
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.22s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.07) 40%, rgba(255,255,255,.07) 60%, transparent 100%);
+    pointer-events: none;
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.08) 40%, rgba(255,255,255,.08) 60%, transparent 100%);
+    pointer-events: none;
+  }
+  .stat-card:hover {
+    border-color: rgba(255,255,255,.12);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(16,185,129,.25);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 16px rgba(16,185,129,.38);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: rgba(255,255,255,.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover {
+    background: rgba(255,255,255,.10);
+    color: var(--text-primary);
+    border-color: rgba(255,255,255,.14);
+  }
+
+  .btn-danger {
+    background: rgba(239,68,68,.10);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,.22);
+  }
+  .btn-danger:hover { background: rgba(239,68,68,.20); }
+
+  /* ── BADGES ── */
+  .badge {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 650;
+    display: inline-block;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── INPUTS ── */
+  input, select, textarea {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    width: 100%;
+    outline: none;
+    transition: var(--transition);
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(16,185,129,.12);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-muted); }
+  select option { background: var(--bg-card); }
+
+  /* ── TABLES ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 11px 16px;
+    color: var(--text-muted);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+  }
+  td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    color: var(--text-secondary);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.025); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+  }
+  .modal::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    pointer-events: none;
+  }
+
+  /* ── MAP ── */
+  #map { height: 100%; width: 100%; border-radius: 0; }
+  .leaflet-popup-content-wrapper {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+  }
+  .leaflet-popup-tip { background: var(--bg-card); }
+  .leaflet-popup-content { margin: 12px 16px; font-size: 13px; }
+
+  /* ── TABS ── */
+  .tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    transition: var(--transition);
+    font-weight: 500;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text-primary); }
+
+  /* ── HEALTH COLORS ── */
+  .health-good      { color: var(--accent); }
+  .health-attention { color: var(--yellow); }
+  .health-diseased  { color: var(--red); }
+
+  /* ── LOGO ICON ── */
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(140deg, #10b981, #059669);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 12px rgba(16,185,129,.32), inset 0 1px 0 rgba(255,255,255,.18);
+    flex-shrink: 0;
+  }
+
+  /* ── PAGE HEADER ── */
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  .page-header p {
+    color: var(--text-muted);
+    font-size: 13.5px;
+    margin: 4px 0 0;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.15); }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border-subtle); margin: 0; }
+</style>
+</head>
+<body>
+<div id="app" style="display:flex; height:100vh;"></div>
+<script>
+// ============================================
+// SAMPLE DATA
+// ============================================
+const DATA = {
+  fruitSpecies: [
+    { id: 's1', commonName: 'Apple', scientificName: 'Malus domestica', code: 'A' },
+    { id: 's2', commonName: 'Pear', scientificName: 'Pyrus communis', code: 'P' },
+    { id: 's3', commonName: 'Cherry', scientificName: 'Prunus avium', code: 'C' },
+    { id: 's4', commonName: 'Peach', scientificName: 'Prunus persica', code: 'H' },
+    { id: 's5', commonName: 'Plum', scientificName: 'Prunus domestica', code: 'L' },
+  ],
+  varieties: [
+    { id: 'v1', speciesId: 's1', name: 'Honeycrisp', code: 'HC', isRootstock: false, vigor: 7, carRating: 8, tasteRating: 9, ripeningGroup: 3 },
+    { id: 'v2', speciesId: 's1', name: 'Fuji', code: 'FJ', isRootstock: false, vigor: 6, carRating: 7, tasteRating: 8, ripeningGroup: 4 },
+    { id: 'v3', speciesId: 's1', name: 'Gala', code: 'GL', isRootstock: false, vigor: 5, carRating: 6, tasteRating: 7, ripeningGroup: 2 },
+    { id: 'v4', speciesId: 's1', name: 'Granny Smith', code: 'GS', isRootstock: false, vigor: 6, carRating: 7, tasteRating: 6, ripeningGroup: 5 },
+    { id: 'v5', speciesId: 's1', name: 'M.9 (Rootstock)', code: 'M9', isRootstock: true, vigor: 3, carRating: null, tasteRating: null, ripeningGroup: null },
+    { id: 'v6', speciesId: 's1', name: 'M.26 (Rootstock)', code: 'M26', isRootstock: true, vigor: 5, carRating: null, tasteRating: null, ripeningGroup: null },
+    { id: 'v7', speciesId: 's2', name: 'Bartlett', code: 'BT', isRootstock: false, vigor: 6, carRating: 7, tasteRating: 8, ripeningGroup: 2 },
+    { id: 'v8', speciesId: 's2', name: "D'Anjou", code: 'DA', isRootstock: false, vigor: 7, carRating: 6, tasteRating: 7, ripeningGroup: 3 },
+    { id: 'v9', speciesId: 's3', name: 'Bing', code: 'BG', isRootstock: false, vigor: 8, carRating: 7, tasteRating: 9, ripeningGroup: 1 },
+    { id: 'v10', speciesId: 's4', name: 'Elberta', code: 'EL', isRootstock: false, vigor: 7, carRating: 5, tasteRating: 8, ripeningGroup: 3 },
+    { id: 'v11', speciesId: 's5', name: 'Santa Rosa', code: 'SR', isRootstock: false, vigor: 6, carRating: 6, tasteRating: 7, ripeningGroup: 2 },
+  ],
+  clients: [
+    { id: 'c1', name: 'Sunrise Orchards LLC', contactName: 'Maria Gonzalez', email: 'maria@sunriseorchards.com', phone: '(509) 555-0142', city: 'Wenatchee', state: 'WA', isActive: true, paymentTerms: 30 },
+    { id: 'c2', name: 'Valley View Farms', contactName: 'Robert Chen', email: 'rob@valleyviewfarms.com', phone: '(541) 555-0198', city: 'Hood River', state: 'OR', isActive: true, paymentTerms: 45 },
+    { id: 'c3', name: 'Heritage Apple Co.', contactName: 'Sarah Mitchell', email: 'sarah@heritageapple.com', phone: '(360) 555-0276', city: 'Yakima', state: 'WA', isActive: true, paymentTerms: 30 },
+    { id: 'c4', name: 'Mountain Crest Nursery', contactName: 'James Park', email: 'james@mountaincrest.com', phone: '(208) 555-0334', city: 'Boise', state: 'ID', isActive: false, paymentTerms: 60 },
+  ],
+  locations: [
+    { id: 'l1', clientId: 'c1', name: 'Sunrise North Block', type: 'orchard', acreage: 45.5, lat: 47.4235, lng: -120.3103, address: '1200 Orchard Rd', city: 'Wenatchee', state: 'WA' },
+    { id: 'l2', clientId: 'c1', name: 'Sunrise South Block', type: 'orchard', acreage: 32.0, lat: 47.4180, lng: -120.3150, address: '1400 Orchard Rd', city: 'Wenatchee', state: 'WA' },
+    { id: 'l3', clientId: 'c2', name: 'Valley View Main', type: 'orchard', acreage: 60.0, lat: 45.7115, lng: -121.5240, address: '800 Fruit Loop Dr', city: 'Hood River', state: 'OR' },
+    { id: 'l4', clientId: 'c3', name: 'Heritage Nursery', type: 'nursery', acreage: 12.0, lat: 46.6021, lng: -120.5059, address: '300 Nursery Ln', city: 'Yakima', state: 'WA' },
+    { id: 'l5', clientId: 'c3', name: 'Heritage East Orchard', type: 'orchard', acreage: 28.0, lat: 46.6100, lng: -120.4900, address: '500 Heritage Way', city: 'Yakima', state: 'WA' },
+  ],
+  trees: [
+    { id: 't1', treeNumber: 'SN-A1-001', locationId: 'l1', scionVarietyId: 'v1', rootstockVarietyId: 'v5', stage: 'producing', health: 'healthy', block: 'A', row: '1', position: 1, lat: 47.4238, lng: -120.3108, plantingDate: '2019-03-15' },
+    { id: 't2', treeNumber: 'SN-A1-002', locationId: 'l1', scionVarietyId: 'v1', rootstockVarietyId: 'v5', stage: 'producing', health: 'healthy', block: 'A', row: '1', position: 2, lat: 47.4238, lng: -120.3104, plantingDate: '2019-03-15' },
+    { id: 't3', treeNumber: 'SN-A1-003', locationId: 'l1', scionVarietyId: 'v2', rootstockVarietyId: 'v6', stage: 'producing', health: 'attention', block: 'A', row: '1', position: 3, lat: 47.4238, lng: -120.3100, plantingDate: '2019-03-15' },
+    { id: 't4', treeNumber: 'SN-A2-001', locationId: 'l1', scionVarietyId: 'v3', rootstockVarietyId: 'v5', stage: 'juvenile', health: 'healthy', block: 'A', row: '2', position: 1, lat: 47.4235, lng: -120.3108, plantingDate: '2022-04-10' },
+    { id: 't5', treeNumber: 'SN-A2-002', locationId: 'l1', scionVarietyId: 'v4', rootstockVarietyId: 'v6', stage: 'juvenile', health: 'healthy', block: 'A', row: '2', position: 2, lat: 47.4235, lng: -120.3104, plantingDate: '2022-04-10' },
+    { id: 't6', treeNumber: 'SS-B1-001', locationId: 'l2', scionVarietyId: 'v2', rootstockVarietyId: 'v5', stage: 'producing', health: 'healthy', block: 'B', row: '1', position: 1, lat: 47.4183, lng: -120.3155, plantingDate: '2018-03-20' },
+    { id: 't7', treeNumber: 'SS-B1-002', locationId: 'l2', scionVarietyId: 'v7', rootstockVarietyId: null, stage: 'producing', health: 'diseased', block: 'B', row: '1', position: 2, lat: 47.4183, lng: -120.3151, plantingDate: '2018-03-20' },
+    { id: 't8', treeNumber: 'VV-C1-001', locationId: 'l3', scionVarietyId: 'v9', rootstockVarietyId: null, stage: 'producing', health: 'healthy', block: 'C', row: '1', position: 1, lat: 45.7118, lng: -121.5245, plantingDate: '2017-04-01' },
+    { id: 't9', treeNumber: 'VV-C1-002', locationId: 'l3', scionVarietyId: 'v10', rootstockVarietyId: null, stage: 'juvenile', health: 'attention', block: 'C', row: '1', position: 2, lat: 45.7118, lng: -121.5241, plantingDate: '2023-04-15' },
+    { id: 't10', treeNumber: 'HN-D1-001', locationId: 'l4', scionVarietyId: 'v1', rootstockVarietyId: 'v5', stage: 'nursery', health: 'healthy', block: 'D', row: '1', position: 1, lat: 46.6024, lng: -120.5063, plantingDate: '2025-02-01' },
+    { id: 't11', treeNumber: 'HE-E1-001', locationId: 'l5', scionVarietyId: 'v11', rootstockVarietyId: null, stage: 'producing', health: 'healthy', block: 'E', row: '1', position: 1, lat: 46.6103, lng: -120.4905, plantingDate: '2020-03-10' },
+    { id: 't12', treeNumber: 'HE-E1-002', locationId: 'l5', scionVarietyId: 'v4', rootstockVarietyId: 'v6', stage: 'producing', health: 'healthy', block: 'E', row: '1', position: 2, lat: 46.6103, lng: -120.4901, plantingDate: '2020-03-10' },
+  ],
+  workOrders: [
+    { id: 'w1', number: 'WO-2026-001', clientId: 'c1', locationId: 'l1', title: 'Spring Pruning — North Block', type: 'Pruning', status: 'in_progress', priority: 'high', assignedTo: 'Jake Thompson', scheduledStart: '2026-03-25', scheduledEnd: '2026-04-05', estimatedHours: 40, notes: 'Focus on Honeycrisp rows first.' },
+    { id: 'w2', number: 'WO-2026-002', clientId: 'c1', locationId: 'l2', title: 'Pest Inspection — South Block', type: 'Inspection', status: 'pending', priority: 'medium', assignedTo: 'Maria Lopez', scheduledStart: '2026-04-01', scheduledEnd: '2026-04-02', estimatedHours: 8, notes: 'Check for fire blight signs.' },
+    { id: 'w3', number: 'WO-2026-003', clientId: 'c2', locationId: 'l3', title: 'Irrigation Repair — Main', type: 'Maintenance', status: 'completed', priority: 'high', assignedTo: 'Tom Wilson', scheduledStart: '2026-03-10', scheduledEnd: '2026-03-12', estimatedHours: 16, notes: 'Replace drip line in rows 4-8.' },
+    { id: 'w4', number: 'WO-2026-004', clientId: 'c3', locationId: 'l4', title: 'Grafting — Spring Batch', type: 'Grafting', status: 'pending', priority: 'medium', assignedTo: 'Jake Thompson', scheduledStart: '2026-04-10', scheduledEnd: '2026-04-20', estimatedHours: 60, notes: 'Honeycrisp on M.9 rootstock, 500 units.' },
+    { id: 'w5', number: 'WO-2026-005', clientId: 'c3', locationId: 'l5', title: 'Fertilizer Application', type: 'Chemical Application', status: 'in_progress', priority: 'low', assignedTo: 'Maria Lopez', scheduledStart: '2026-03-28', scheduledEnd: '2026-03-30', estimatedHours: 12, notes: 'Organic nitrogen boost for east orchard.' },
+  ],
+  invoices: [
+    { id: 'i1', number: 'INV-2026-001', clientId: 'c1', date: '2026-03-01', dueDate: '2026-03-31', status: 'sent', subtotal: 4800.00, tax: 432.00, total: 5232.00, paid: 0 },
+    { id: 'i2', number: 'INV-2026-002', clientId: 'c2', date: '2026-03-15', dueDate: '2026-04-29', status: 'paid', subtotal: 2400.00, tax: 216.00, total: 2616.00, paid: 2616.00 },
+    { id: 'i3', number: 'INV-2026-003', clientId: 'c3', date: '2026-02-15', dueDate: '2026-03-17', status: 'overdue', subtotal: 7200.00, tax: 648.00, total: 7848.00, paid: 0 },
+    { id: 'i4', number: 'INV-2025-048', clientId: 'c1', date: '2025-12-01', dueDate: '2025-12-31', status: 'paid', subtotal: 3200.00, tax: 288.00, total: 3488.00, paid: 3488.00 },
+  ],
+};
+
+// ============================================
+// APP STATE
+// ============================================
+let state = {
+  currentPage: 'dashboard',
+  modal: null,
+  selectedLocationId: null,
+  mapInstance: null,
+  treeMarkers: [],
+  addingTree: false,
+};
+
+// Helper functions
+const getVariety = id => DATA.varieties.find(v => v.id === id);
+const getSpecies = id => DATA.fruitSpecies.find(s => s.id === id);
+const getClient = id => DATA.clients.find(c => c.id === id);
+const getLocation = id => DATA.locations.find(l => l.id === id);
+const getTreesForLocation = locId => DATA.trees.filter(t => t.locationId === locId);
+
+function healthColor(h) { return h === 'healthy' ? '#10b981' : h === 'attention' ? '#f59e0b' : '#ef4444'; }
+function healthBg(h)    { return h === 'healthy' ? 'rgba(16,185,129,0.13)' : h === 'attention' ? 'rgba(245,158,11,0.13)' : 'rgba(239,68,68,0.13)'; }
+
+function statusBadge(s) {
+  const map = {
+    pending:     ['#3b82f6','rgba(59,130,246,0.13)'],
+    in_progress: ['#f59e0b','rgba(245,158,11,0.13)'],
+    completed:   ['#10b981','rgba(16,185,129,0.13)'],
+    sent:        ['#3b82f6','rgba(59,130,246,0.13)'],
+    paid:        ['#10b981','rgba(16,185,129,0.13)'],
+    overdue:     ['#ef4444','rgba(239,68,68,0.13)'],
+    draft:       ['#6e8fb5','rgba(110,143,181,0.13)'],
+  };
+  const [c, bg] = map[s] || ['#6e8fb5','rgba(110,143,181,0.13)'];
+  return `<span class="badge" style="color:${c};background:${bg}">${s.replace('_',' ').toUpperCase()}</span>`;
+}
+
+function priorityBadge(p) {
+  const map = {
+    high:   ['#ef4444','rgba(239,68,68,0.13)'],
+    medium: ['#f59e0b','rgba(245,158,11,0.13)'],
+    low:    ['#10b981','rgba(16,185,129,0.13)'],
+  };
+  const [c, bg] = map[p] || ['#6e8fb5','rgba(110,143,181,0.13)'];
+  return `<span class="badge" style="color:${c};background:${bg}">${p.toUpperCase()}</span>`;
+}
+
+function uid() { return 'id_' + Math.random().toString(36).substr(2,9); }
+
+// ============================================
+// RENDER ENGINE
+// ============================================
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">🍎</div>
+        <div>
+          <div style="font-weight:700;font-size:14.5px;color:#e8f1ff;letter-spacing:-0.01em">Adams Apples</div>
+          <div style="font-size:11px;color:#364f6e;margin-top:1px;font-weight:500">Orchard Management</div>
+        </div>
+      </div>
+
+      <div style="padding:8px 0;flex:1">
+        <div class="sidebar-section-label">Overview</div>
+        ${sidebarItem('dashboard', '▦', 'Dashboard')}
+        ${sidebarItem('map', '◎', 'GPS Map')}
+        <div class="sidebar-section-label">Management</div>
+        ${sidebarItem('trees', '❧', 'Trees')}
+        ${sidebarItem('varieties', '◈', 'Varieties')}
+        ${sidebarItem('workorders', '≡', 'Work Orders')}
+        <div class="sidebar-section-label">Business</div>
+        ${sidebarItem('clients', '◉', 'Clients')}
+        ${sidebarItem('invoices', '$', 'Invoices')}
+      </div>
+
+      <div style="padding:14px 18px;border-top:1px solid #16304f">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;background:linear-gradient(135deg,#16304f,#0d1e34);border:1px solid #1e3050;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">👤</div>
+          <div>
+            <div style="color:#e8f1ff;font-weight:600;font-size:13px">Admin User</div>
+            <div style="font-size:11px;color:#364f6e;margin-top:1px">admin@adamsapples.com</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="main-content" id="page-content"></div>
+  `;
+
+  const pageEl = document.getElementById('page-content');
+  switch(state.currentPage) {
+    case 'dashboard':  renderDashboard(pageEl); break;
+    case 'map':        renderMap(pageEl); break;
+    case 'trees':      renderTrees(pageEl); break;
+    case 'varieties':  renderVarieties(pageEl); break;
+    case 'workorders': renderWorkOrders(pageEl); break;
+    case 'clients':    renderClients(pageEl); break;
+    case 'invoices':   renderInvoices(pageEl); break;
+  }
+}
+
+function sidebarItem(page, icon, label) {
+  return `<div class="sidebar-item ${state.currentPage===page?'active':''}" onclick="navigate('${page}')">
+    <span class="icon" style="font-size:13px;opacity:0.8">${icon}</span>
+    <span>${label}</span>
+  </div>`;
+}
+
+function navigate(page) {
+  state.currentPage = page;
+  state.addingTree = false;
+  render();
+}
+
+// ============================================
+// DASHBOARD
+// ============================================
+function renderDashboard(el) {
+  const totalTrees   = DATA.trees.length;
+  const healthyCt    = DATA.trees.filter(t=>t.health==='healthy').length;
+  const attentionCt  = DATA.trees.filter(t=>t.health==='attention').length;
+  const diseasedCt   = DATA.trees.filter(t=>t.health==='diseased').length;
+  const activeWO     = DATA.workOrders.filter(w=>w.status==='in_progress').length;
+  const pendingWO    = DATA.workOrders.filter(w=>w.status==='pending').length;
+  const totalRevenue = DATA.invoices.reduce((s,i)=>s+i.total,0);
+  const outstanding  = DATA.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+(i.total-i.paid),0);
+
+  el.innerHTML = `
+    <div class="page-header" style="margin-bottom:28px;display:flex;align-items:flex-end;justify-content:space-between">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Welcome back. Here's your orchard overview.</p>
+      </div>
+      <div style="font-size:12px;color:#364f6e;background:#0d1e34;border:1px solid #16304f;border-radius:8px;padding:6px 14px;font-weight:500">
+        📅 March 29, 2026
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Total Trees</div>
+        <div style="font-size:30px;font-weight:700;color:#10b981;letter-spacing:-0.02em">${totalTrees}</div>
+        <div style="font-size:12px;color:#364f6e;margin-top:6px;font-weight:500">${DATA.locations.length} locations tracked</div>
+      </div>
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Fleet Health</div>
+        <div style="font-size:30px;font-weight:700;color:#10b981;letter-spacing:-0.02em">${Math.round(healthyCt/totalTrees*100)}<span style="font-size:17px;font-weight:500;color:#364f6e">%</span></div>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:11.5px;font-weight:500">
+          <span style="color:#10b981">${healthyCt} healthy</span>
+          <span style="color:#f59e0b">${attentionCt} attention</span>
+          <span style="color:#ef4444">${diseasedCt} diseased</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Work Orders</div>
+        <div style="font-size:30px;font-weight:700;color:#3b82f6;letter-spacing:-0.02em">${DATA.workOrders.length}</div>
+        <div style="display:flex;gap:10px;margin-top:6px;font-size:11.5px;font-weight:500">
+          <span style="color:#f59e0b">${activeWO} in progress</span>
+          <span style="color:#3b82f6">${pendingWO} pending</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Revenue (YTD)</div>
+        <div style="font-size:30px;font-weight:700;color:#e8f1ff;letter-spacing:-0.02em">$${(totalRevenue/1000).toFixed(1)}<span style="font-size:17px;font-weight:500;color:#364f6e">k</span></div>
+        <div style="font-size:12px;color:#ef4444;margin-top:6px;font-weight:500">$${outstanding.toLocaleString()} outstanding</div>
+      </div>
+    </div>
+
+    <!-- HEALTH BAR -->
+    <div class="card" style="margin-bottom:20px;padding:18px 22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:12px;font-weight:600;color:#6e8fb5;text-transform:uppercase;letter-spacing:.07em">Tree Health Distribution</span>
+        <span style="font-size:12px;color:#364f6e">${totalTrees} trees</span>
+      </div>
+      <div style="height:8px;border-radius:999px;overflow:hidden;display:flex;gap:2px">
+        <div style="flex:${healthyCt};background:#10b981;border-radius:999px 0 0 999px"></div>
+        <div style="flex:${attentionCt};background:#f59e0b"></div>
+        <div style="flex:${diseasedCt};background:#ef4444;border-radius:0 999px 999px 0"></div>
+      </div>
+    </div>
+
+    <!-- WORK ORDERS + VARIETIES -->
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <span style="font-size:14px;font-weight:650;color:#e8f1ff">Recent Work Orders</span>
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="navigate('workorders')">View All</button>
+        </div>
+        <table>
+          <thead><tr><th>Order</th><th>Title</th><th>Status</th><th>Priority</th></tr></thead>
+          <tbody>
+            ${DATA.workOrders.slice(0,4).map(w => `
+              <tr>
+                <td style="color:#364f6e;font-family:monospace;font-size:11.5px">${w.number}</td>
+                <td style="color:#e8f1ff;font-weight:500">${w.title}</td>
+                <td>${statusBadge(w.status)}</td>
+                <td>${priorityBadge(w.priority)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <span style="font-size:14px;font-weight:650;color:#e8f1ff">Trees by Variety</span>
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="navigate('trees')">View All</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${(() => {
+            const counts = {};
+            DATA.trees.forEach(t => {
+              const v = getVariety(t.scionVarietyId);
+              if (v) counts[v.name] = (counts[v.name]||0)+1;
+            });
+            return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,ct]) => `
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:13px;color:#c4d6ef;font-weight:500">${name}</span>
+                  <span style="font-size:12px;color:#364f6e;font-weight:600">${ct}</span>
+                </div>
+                <div style="height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
+                  <div style="height:100%;width:${ct/DATA.trees.length*100}%;background:linear-gradient(90deg,#10b981,#059669);border-radius:3px;transition:width .5s ease"></div>
+                </div>
+              </div>
+            `).join('');
+          })()}
+        </div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 16px">
+        <span style="font-size:14px;font-weight:650;color:#e8f1ff">Invoices Overview</span>
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="navigate('invoices')">View All</button>
+      </div>
+      <hr class="divider">
+      <table>
+        <thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Status</th><th>Due Date</th></tr></thead>
+        <tbody>
+          ${DATA.invoices.map(inv => `
+            <tr>
+              <td style="font-family:monospace;font-size:12px;color:#6e8fb5">${inv.number}</td>
+              <td style="color:#c4d6ef;font-weight:500">${getClient(inv.clientId)?.name||''}</td>
+              <td style="font-weight:650;color:#e8f1ff">$${inv.total.toLocaleString()}</td>
+              <td>${statusBadge(inv.status)}</td>
+              <td style="color:#364f6e">${inv.dueDate}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================
+// GPS MAP
+// ============================================
+function renderMap(el) {
+  el.style.padding = '0';
+  el.innerHTML = `
+    <div style="display:flex;height:100%">
+      <div style="width:296px;background:#09152a;border-right:1px solid #16304f;overflow-y:auto;padding:16px;flex-shrink:0">
+        <h3 style="font-size:14px;font-weight:650;margin:0 0 14px;color:#e8f1ff;letter-spacing:-0.01em">Locations</h3>
+        <div style="margin-bottom:12px">
+          <input type="text" placeholder="Search locations…" style="font-size:12.5px" oninput="filterLocations(this.value)">
+        </div>
+        <div id="location-list">
+          ${DATA.locations.map(loc => {
+            const client = getClient(loc.clientId);
+            const treeCt = getTreesForLocation(loc.id).length;
+            return `
+              <div onclick="selectLocation('${loc.id}')" style="padding:12px 14px;border-radius:10px;cursor:pointer;margin-bottom:6px;border:1px solid ${state.selectedLocationId===loc.id?'#10b981':'#16304f'};background:${state.selectedLocationId===loc.id?'rgba(16,185,129,0.08)':'rgba(255,255,255,0.015)'};transition:all 0.18s ease" class="loc-item">
+                <div style="font-weight:600;font-size:13px;color:#e8f1ff">${loc.name}</div>
+                <div style="font-size:11px;color:#364f6e;margin-top:2px">${client?.name||''}</div>
+                <div style="display:flex;gap:8px;margin-top:7px;align-items:center">
+                  <span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981;font-size:10px">${loc.type}</span>
+                  <span style="font-size:11px;color:#4a6a8a">${treeCt} trees · ${loc.acreage} ac</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div id="map-tree-panel" style="margin-top:14px;display:${state.selectedLocationId?'block':'none'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:13px;font-weight:600;color:#e8f1ff">Trees at Location</span>
+            <button class="btn btn-primary" style="font-size:11px;padding:5px 11px" onclick="startAddTree()">+ Add Tree</button>
+          </div>
+          <div id="map-tree-list"></div>
+        </div>
+      </div>
+
+      <div style="flex:1;position:relative">
+        <div id="map" style="height:100%;width:100%;border-radius:0"></div>
+        <div id="map-controls" style="position:absolute;top:16px;right:16px;z-index:1000">
+          <button class="btn btn-secondary" onclick="fitAllLocations()" style="font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.5);backdrop-filter:blur(4px)">📍 Fit All</button>
+        </div>
+        <div id="add-tree-bar" style="display:${state.addingTree?'flex':'none'};position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:1000;background:#0d1e34;border:1.5px solid #10b981;border-radius:12px;padding:14px 22px;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+          <span style="font-size:13px;color:#10b981;font-weight:600">📌 Click the map to place a new tree</span>
+          <button class="btn btn-danger" style="font-size:11px;padding:5px 11px" onclick="cancelAddTree()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
+  setTimeout(() => initMap(), 100);
+}
+
+function initMap() {
+  if (state.mapInstance) { state.mapInstance.remove(); state.mapInstance = null; }
+  const map = L.map('map', { zoomControl: false }).setView([46.8, -120.5], 7);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 20
+  }).addTo(map);
+  state.mapInstance = map;
+  state.treeMarkers = [];
+
+  DATA.locations.forEach(loc => {
+    const treeCt = getTreesForLocation(loc.id).length;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="background:#10b981;color:#fff;font-weight:700;font-size:11px;width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.9);box-shadow:0 3px 10px rgba(0,0,0,.4)">${treeCt}</div>`,
+      iconSize: [30,30],
+      iconAnchor: [15,15]
+    });
+    const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map);
+    marker.bindPopup(`<b>${loc.name}</b><br><span style="color:#6e8fb5">${getClient(loc.clientId)?.name||''}</span><br>${treeCt} trees · ${loc.acreage} ac`);
+    marker.on('click', () => selectLocation(loc.id));
+  });
+
+  if (state.selectedLocationId) {
+    showTreesOnMap();
+  } else {
+    fitAllLocations();
+  }
+
+  map.on('click', function(e) {
+    if (state.addingTree && state.selectedLocationId) {
+      showAddTreeModal(e.latlng.lat, e.latlng.lng);
+    }
+  });
+}
+
+function fitAllLocations() {
+  if (!state.mapInstance) return;
+  const bounds = L.latLngBounds(DATA.locations.map(l => [l.lat, l.lng]));
+  state.mapInstance.fitBounds(bounds, { padding: [60,60] });
+}
+
+function selectLocation(locId) {
+  state.selectedLocationId = locId;
+  const loc = getLocation(locId);
+  if (state.mapInstance && loc) {
+    state.mapInstance.setView([loc.lat, loc.lng], 16);
+  }
+  showTreesOnMap();
+  updateMapSidebar();
+}
+
+function showTreesOnMap() {
+  if (!state.mapInstance) return;
+  state.treeMarkers.forEach(m => state.mapInstance.removeLayer(m));
+  state.treeMarkers = [];
+  if (!state.selectedLocationId) return;
+  const trees = getTreesForLocation(state.selectedLocationId);
+  trees.forEach(tree => {
+    const variety = getVariety(tree.scionVarietyId);
+    const rootstock = tree.rootstockVarietyId ? getVariety(tree.rootstockVarietyId) : null;
+    const color = healthColor(tree.health);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="background:${color};width:14px;height:14px;border-radius:999px;border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:pointer"></div>`,
+      iconSize: [14,14],
+      iconAnchor: [7,7]
+    });
+    const marker = L.marker([tree.lat, tree.lng], { icon }).addTo(state.mapInstance);
+    marker.bindPopup(`
+      <div style="min-width:180px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#e8f1ff">${tree.treeNumber}</div>
+        <div style="margin-bottom:4px"><span style="color:#6e8fb5">Variety:</span> <span style="color:#c4d6ef">${variety?.name||'Unknown'}</span></div>
+        ${rootstock?`<div style="margin-bottom:4px"><span style="color:#6e8fb5">Rootstock:</span> <span style="color:#c4d6ef">${rootstock.name}</span></div>`:''}
+        <div style="margin-bottom:4px"><span style="color:#6e8fb5">Stage:</span> <span style="color:#c4d6ef">${tree.stage}</span></div>
+        <div style="margin-bottom:4px"><span style="color:#6e8fb5">Health:</span> <span style="color:${color};font-weight:650">${tree.health.toUpperCase()}</span></div>
+        <div style="margin-bottom:4px"><span style="color:#6e8fb5">Block/Row:</span> <span style="color:#c4d6ef">${tree.block}-${tree.row}-${tree.position}</span></div>
+        <div><span style="color:#6e8fb5">Planted:</span> <span style="color:#c4d6ef">${tree.plantingDate}</span></div>
+      </div>
+    `);
+    state.treeMarkers.push(marker);
+  });
+}
+
+function updateMapSidebar() {
+  const panel = document.getElementById('map-tree-panel');
+  const list = document.getElementById('map-tree-list');
+  if (!panel || !list) return;
+  panel.style.display = state.selectedLocationId ? 'block' : 'none';
+  if (!state.selectedLocationId) return;
+  const trees = getTreesForLocation(state.selectedLocationId);
+  list.innerHTML = trees.map(t => {
+    const v = getVariety(t.scionVarietyId);
+    return `<div style="padding:9px 12px;border-radius:8px;margin-bottom:5px;background:rgba(255,255,255,.025);border:1px solid #16304f;font-size:12px;cursor:pointer;transition:all .15s ease" onclick="panToTree('${t.id}')"
+      onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background='rgba(255,255,255,.025)'">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:650;color:#e8f1ff">${t.treeNumber}</span>
+        <span style="width:8px;height:8px;border-radius:999px;background:${healthColor(t.health)};display:inline-block"></span>
+      </div>
+      <div style="color:#6e8fb5;margin-top:3px">${v?.name||'Unknown'} · <span style="color:#4a6a8a">${t.stage}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function panToTree(treeId) {
+  const tree = DATA.trees.find(t=>t.id===treeId);
+  if (tree && state.mapInstance) {
+    state.mapInstance.setView([tree.lat, tree.lng], 18);
+    const marker = state.treeMarkers.find(m => {
+      const ll = m.getLatLng();
+      return Math.abs(ll.lat - tree.lat) < 0.0001 && Math.abs(ll.lng - tree.lng) < 0.0001;
+    });
+    if (marker) marker.openPopup();
+  }
+}
+
+function startAddTree() {
+  state.addingTree = true;
+  const bar = document.getElementById('add-tree-bar');
+  if (bar) bar.style.display = 'flex';
+}
+
+function cancelAddTree() {
+  state.addingTree = false;
+  const bar = document.getElementById('add-tree-bar');
+  if (bar) bar.style.display = 'none';
+}
+
+function showAddTreeModal(lat, lng) {
+  cancelAddTree();
+  const loc = getLocation(state.selectedLocationId);
+  const scions = DATA.varieties.filter(v => !v.isRootstock);
+  const rootstocks = DATA.varieties.filter(v => v.isRootstock);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 style="font-size:17px;font-weight:700;margin:0 0 4px;color:#e8f1ff;letter-spacing:-0.01em">Add New Tree</h3>
+      <p style="font-size:12px;color:#364f6e;margin:0 0 22px;font-weight:500">${loc?.name||''} &nbsp;·&nbsp; ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Tree Number *</label>
+          <input id="new-tree-number" value="${loc?.name?.substring(0,2).toUpperCase()||'XX'}-${String(DATA.trees.length+1).padStart(3,'0')}" />
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Block</label>
+          <input id="new-tree-block" placeholder="e.g. A" />
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Scion Variety *</label>
+          <select id="new-tree-scion">
+            <option value="">Select variety…</option>
+            ${scions.map(v => {
+              const sp = getSpecies(v.speciesId);
+              return `<option value="${v.id}">${sp?.commonName||''} — ${v.name}</option>`;
+            }).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Rootstock</label>
+          <select id="new-tree-rootstock">
+            <option value="">None</option>
+            ${rootstocks.map(v => `<option value="${v.id}">${v.name} (${v.code})</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Row</label>
+          <input id="new-tree-row" placeholder="e.g. 1" />
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Position</label>
+          <input id="new-tree-pos" type="number" placeholder="e.g. 1" />
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Stage</label>
+          <select id="new-tree-stage">
+            <option value="nursery">Nursery</option>
+            <option value="juvenile">Juvenile</option>
+            <option value="producing" selected>Producing</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Planting Date</label>
+          <input id="new-tree-date" type="date" value="${new Date().toISOString().split('T')[0]}" />
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="addTree(${lat},${lng})">🌳 Plant Tree</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function addTree(lat, lng) {
+  const num = document.getElementById('new-tree-number').value;
+  const scion = document.getElementById('new-tree-scion').value;
+  if (!num || !scion) { alert('Tree number and scion variety are required.'); return; }
+  const newTree = {
+    id: uid(),
+    treeNumber: num,
+    locationId: state.selectedLocationId,
+    scionVarietyId: scion,
+    rootstockVarietyId: document.getElementById('new-tree-rootstock').value || null,
+    stage: document.getElementById('new-tree-stage').value,
+    health: 'healthy',
+    block: document.getElementById('new-tree-block').value || '',
+    row: document.getElementById('new-tree-row').value || '',
+    position: parseInt(document.getElementById('new-tree-pos').value) || 0,
+    lat, lng,
+    plantingDate: document.getElementById('new-tree-date').value,
+  };
+  DATA.trees.push(newTree);
+  closeModal();
+  showTreesOnMap();
+  updateMapSidebar();
+}
+
+function closeModal() {
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.remove();
+}
+
+function filterLocations(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.loc-item').forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+  });
+}
+
+// ============================================
+// TREES PAGE
+// ============================================
+function renderTrees(el) {
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px">
+      <div class="page-header">
+        <h1>Trees</h1>
+        <p>${DATA.trees.length} trees across ${DATA.locations.length} locations</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="tree-search" placeholder="Search trees…" style="width:210px" oninput="filterTreeTable()">
+        <select id="tree-health-filter" onchange="filterTreeTable()" style="width:130px">
+          <option value="">All Health</option>
+          <option value="healthy">Healthy</option>
+          <option value="attention">Attention</option>
+          <option value="diseased">Diseased</option>
+        </select>
+        <select id="tree-loc-filter" onchange="filterTreeTable()" style="width:160px">
+          <option value="">All Locations</option>
+          ${DATA.locations.map(l=>`<option value="${l.id}">${l.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr><th>Tree #</th><th>Location</th><th>Scion Variety</th><th>Rootstock</th><th>Stage</th><th>Health</th><th>Block/Row</th><th>Planted</th></tr>
+        </thead>
+        <tbody id="tree-table-body">
+          ${renderTreeRows(DATA.trees)}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderTreeRows(trees) {
+  return trees.map(t => {
+    const loc = getLocation(t.locationId);
+    const scion = getVariety(t.scionVarietyId);
+    const rootstock = t.rootstockVarietyId ? getVariety(t.rootstockVarietyId) : null;
+    const species = scion ? getSpecies(scion.speciesId) : null;
+    return `<tr class="tree-row" data-health="${t.health}" data-loc="${t.locationId}" data-search="${t.treeNumber} ${scion?.name||''} ${loc?.name||''}">
+      <td style="font-family:monospace;font-weight:650;color:#e8f1ff;font-size:12.5px">${t.treeNumber}</td>
+      <td style="color:#c4d6ef">${loc?.name||''}</td>
+      <td><span style="color:#364f6e;font-size:11px">${species?.commonName||''}</span> <span style="color:#c4d6ef;font-weight:500">${scion?.name||''}</span></td>
+      <td style="color:#4a6a8a">${rootstock?.name||'—'}</td>
+      <td><span class="badge" style="background:rgba(59,130,246,0.12);color:#3b82f6">${t.stage}</span></td>
+      <td><span class="badge" style="color:${healthColor(t.health)};background:${healthBg(t.health)}">${t.health.toUpperCase()}</span></td>
+      <td style="color:#4a6a8a;font-family:monospace;font-size:12px">${t.block}-${t.row}-${t.position}</td>
+      <td style="color:#4a6a8a">${t.plantingDate}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTreeTable() {
+  const q = (document.getElementById('tree-search')?.value||'').toLowerCase();
+  const h = document.getElementById('tree-health-filter')?.value||'';
+  const l = document.getElementById('tree-loc-filter')?.value||'';
+  document.querySelectorAll('.tree-row').forEach(row => {
+    const matchSearch = !q || row.dataset.search.toLowerCase().includes(q);
+    const matchHealth = !h || row.dataset.health === h;
+    const matchLoc    = !l || row.dataset.loc === l;
+    row.style.display = (matchSearch && matchHealth && matchLoc) ? '' : 'none';
+  });
+}
+
+// ============================================
+// VARIETIES PAGE
+// ============================================
+function renderVarieties(el) {
+  el.innerHTML = `
+    <div class="page-header" style="margin-bottom:24px">
+      <h1>Varieties & Species</h1>
+      <p>${DATA.fruitSpecies.length} species · ${DATA.varieties.length} varieties</p>
+    </div>
+    ${DATA.fruitSpecies.map(sp => {
+      const vars = DATA.varieties.filter(v=>v.speciesId===sp.id);
+      return `
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <span style="font-size:22px">${sp.code==='A'?'🍎':sp.code==='P'?'🍐':sp.code==='C'?'🍒':sp.code==='H'?'🍑':'🫐'}</span>
+            <div>
+              <h3 style="font-size:15.5px;font-weight:650;margin:0;color:#e8f1ff;letter-spacing:-0.01em">${sp.commonName}</h3>
+              <span style="font-size:12px;color:#364f6e;font-style:italic">${sp.scientificName}</span>
+            </div>
+          </div>
+          <hr class="divider" style="margin-bottom:14px">
+          <table>
+            <thead><tr><th>Variety</th><th>Code</th><th>Type</th><th>Vigor</th><th>Taste</th><th>CAR</th><th>Ripening</th><th>Trees</th></tr></thead>
+            <tbody>
+              ${vars.map(v => {
+                const treeCt = DATA.trees.filter(t=>t.scionVarietyId===v.id || t.rootstockVarietyId===v.id).length;
+                return `<tr>
+                  <td style="font-weight:650;color:#e8f1ff">${v.name}</td>
+                  <td style="font-family:monospace;color:#6e8fb5;font-size:12px">${v.code}</td>
+                  <td>${v.isRootstock
+                    ?'<span class="badge" style="background:rgba(139,92,246,0.12);color:#a78bfa">ROOTSTOCK</span>'
+                    :'<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981">SCION</span>'}</td>
+                  <td style="color:#6e8fb5">${v.vigor!=null?v.vigor+'/10':'—'}</td>
+                  <td style="color:#6e8fb5">${v.tasteRating!=null?v.tasteRating+'/10':'—'}</td>
+                  <td style="color:#6e8fb5">${v.carRating!=null?v.carRating+'/10':'—'}</td>
+                  <td style="color:#6e8fb5">${v.ripeningGroup!=null?'Group '+v.ripeningGroup:'—'}</td>
+                  <td style="color:#10b981;font-weight:650">${treeCt}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+// ============================================
+// WORK ORDERS PAGE
+// ============================================
+function renderWorkOrders(el) {
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px">
+      <div class="page-header">
+        <h1>Work Orders</h1>
+        <p>${DATA.workOrders.length} orders total</p>
+      </div>
+      <button class="btn btn-primary" onclick="showNewWorkOrderModal()">+ New Work Order</button>
+    </div>
+
+    <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid #16304f">
+      <div class="tab ${!window._woFilter||window._woFilter==='all'?'active':''}" onclick="filterWO('all')">All (${DATA.workOrders.length})</div>
+      <div class="tab ${window._woFilter==='in_progress'?'active':''}" onclick="filterWO('in_progress')">In Progress (${DATA.workOrders.filter(w=>w.status==='in_progress').length})</div>
+      <div class="tab ${window._woFilter==='pending'?'active':''}" onclick="filterWO('pending')">Pending (${DATA.workOrders.filter(w=>w.status==='pending').length})</div>
+      <div class="tab ${window._woFilter==='completed'?'active':''}" onclick="filterWO('completed')">Completed (${DATA.workOrders.filter(w=>w.status==='completed').length})</div>
+    </div>
+
+    <div id="wo-list">
+      ${renderWOCards(window._woFilter && window._woFilter!=='all' ? DATA.workOrders.filter(w=>w.status===window._woFilter) : DATA.workOrders)}
+    </div>
+  `;
+}
+
+function renderWOCards(orders) {
+  return orders.map(wo => {
+    const client = getClient(wo.clientId);
+    const loc = getLocation(wo.locationId);
+    return `
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <span style="font-family:monospace;font-size:11.5px;color:#364f6e">${wo.number}</span>
+              ${statusBadge(wo.status)}
+              ${priorityBadge(wo.priority)}
+              <span class="badge" style="background:rgba(59,130,246,0.12);color:#3b82f6">${wo.type}</span>
+            </div>
+            <h3 style="font-size:15.5px;font-weight:650;margin:0 0 6px;color:#e8f1ff;letter-spacing:-0.01em">${wo.title}</h3>
+            <div style="font-size:13px;color:#6e8fb5">${client?.name||''} <span style="color:#16304f">·</span> ${loc?.name||''}</div>
+          </div>
+          <div style="text-align:right;font-size:12.5px;color:#6e8fb5;flex-shrink:0;margin-left:20px">
+            <div style="font-weight:600;color:#c4d6ef">${wo.assignedTo}</div>
+            <div style="margin-top:4px;font-family:monospace;font-size:11.5px">${wo.scheduledStart} → ${wo.scheduledEnd}</div>
+            <div style="margin-top:4px;color:#364f6e">${wo.estimatedHours}h estimated</div>
+          </div>
+        </div>
+        ${wo.notes?`<div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,.025);border-radius:7px;font-size:12.5px;color:#6e8fb5;border:1px solid #0f2540">${wo.notes}</div>`:''}
+      </div>
+    `;
+  }).join('');
+}
+
+function filterWO(filter) {
+  window._woFilter = filter;
+  renderWorkOrders(document.getElementById('page-content'));
+}
+
+function showNewWorkOrderModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 style="font-size:17px;font-weight:700;margin:0 0 20px;color:#e8f1ff;letter-spacing:-0.01em">Create Work Order</h3>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Title *</label>
+          <input id="wo-title" placeholder="e.g. Spring Pruning — Block A">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Client *</label>
+            <select id="wo-client">
+              <option value="">Select client…</option>
+              ${DATA.clients.filter(c=>c.isActive).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Location *</label>
+            <select id="wo-location">
+              <option value="">Select location…</option>
+              ${DATA.locations.map(l=>`<option value="${l.id}">${l.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Type</label>
+            <select id="wo-type">
+              <option>Pruning</option><option>Inspection</option><option>Maintenance</option><option>Grafting</option>
+              <option>Chemical Application</option><option>Harvest</option><option>Planting</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Priority</label>
+            <select id="wo-priority">
+              <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Start Date</label>
+            <input id="wo-start" type="date">
+          </div>
+          <div>
+            <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">End Date</label>
+            <input id="wo-end" type="date">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Assigned To</label>
+          <input id="wo-assigned" placeholder="e.g. Jake Thompson">
+        </div>
+        <div>
+          <label style="font-size:11.5px;color:#6e8fb5;display:block;margin-bottom:5px;font-weight:600">Notes</label>
+          <textarea id="wo-notes" rows="2" placeholder="Additional details…"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createWorkOrder()">Create Order</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function createWorkOrder() {
+  const title = document.getElementById('wo-title').value;
+  const clientId = document.getElementById('wo-client').value;
+  const locationId = document.getElementById('wo-location').value;
+  if (!title || !clientId || !locationId) { alert('Title, client, and location are required.'); return; }
+  DATA.workOrders.unshift({
+    id: uid(),
+    number: `WO-2026-${String(DATA.workOrders.length+1).padStart(3,'0')}`,
+    clientId, locationId, title,
+    type: document.getElementById('wo-type').value,
+    status: 'pending',
+    priority: document.getElementById('wo-priority').value,
+    assignedTo: document.getElementById('wo-assigned').value || 'Unassigned',
+    scheduledStart: document.getElementById('wo-start').value || '',
+    scheduledEnd: document.getElementById('wo-end').value || '',
+    estimatedHours: 0,
+    notes: document.getElementById('wo-notes').value,
+  });
+  closeModal();
+  renderWorkOrders(document.getElementById('page-content'));
+}
+
+// ============================================
+// CLIENTS PAGE
+// ============================================
+function renderClients(el) {
+  el.innerHTML = `
+    <div class="page-header" style="margin-bottom:24px">
+      <h1>Clients</h1>
+      <p>${DATA.clients.length} clients · ${DATA.clients.filter(c=>c.isActive).length} active</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${DATA.clients.map(c => {
+        const locs = DATA.locations.filter(l=>l.clientId===c.id);
+        const treeCt = DATA.trees.filter(t=>locs.some(l=>l.id===t.locationId)).length;
+        const invoiceTotal = DATA.invoices.filter(i=>i.clientId===c.id).reduce((s,i)=>s+i.total,0);
+        const outstanding = DATA.invoices.filter(i=>i.clientId===c.id && i.status!=='paid').reduce((s,i)=>s+(i.total-i.paid),0);
+        return `
+          <div class="card" style="${!c.isActive?'opacity:0.72':''}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+              <div>
+                <h3 style="font-size:15.5px;font-weight:650;margin:0;color:#e8f1ff;letter-spacing:-0.01em">${c.name}</h3>
+                <div style="font-size:13px;color:#6e8fb5;margin-top:3px">${c.contactName}</div>
+              </div>
+              ${c.isActive
+                ?'<span class="badge" style="background:rgba(16,185,129,0.12);color:#10b981">ACTIVE</span>'
+                :'<span class="badge" style="background:rgba(110,143,181,0.10);color:#6e8fb5">INACTIVE</span>'}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
+              <div style="font-size:12px;color:#4a6a8a">✉ ${c.email}</div>
+              <div style="font-size:12px;color:#4a6a8a">☎ ${c.phone}</div>
+              <div style="font-size:12px;color:#4a6a8a">📍 ${c.city}, ${c.state}</div>
+              <div style="font-size:12px;color:#4a6a8a">⏱ Net ${c.paymentTerms} days</div>
+            </div>
+
+            <hr class="divider" style="margin-bottom:12px">
+            <div style="display:flex;gap:20px;font-size:12.5px">
+              <div><span style="color:#364f6e">Locations</span> <span style="color:#e8f1ff;font-weight:650;margin-left:4px">${locs.length}</span></div>
+              <div><span style="color:#364f6e">Trees</span> <span style="color:#10b981;font-weight:650;margin-left:4px">${treeCt}</span></div>
+              <div><span style="color:#364f6e">Billed</span> <span style="color:#e8f1ff;font-weight:650;margin-left:4px">$${invoiceTotal.toLocaleString()}</span></div>
+              ${outstanding>0?`<div><span style="color:#364f6e">Owed</span> <span style="color:#ef4444;font-weight:650;margin-left:4px">$${outstanding.toLocaleString()}</span></div>`:''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ============================================
+// INVOICES PAGE
+// ============================================
+function renderInvoices(el) {
+  const totalBilled      = DATA.invoices.reduce((s,i)=>s+i.total,0);
+  const totalPaid        = DATA.invoices.reduce((s,i)=>s+i.paid,0);
+  const totalOutstanding = totalBilled - totalPaid;
+
+  el.innerHTML = `
+    <div class="page-header" style="margin-bottom:24px">
+      <h1>Invoices</h1>
+      <p>${DATA.invoices.length} invoices · ${DATA.invoices.filter(i=>i.status==='paid').length} paid</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Total Billed</div>
+        <div style="font-size:28px;font-weight:700;color:#e8f1ff;letter-spacing:-0.02em">$${totalBilled.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Total Collected</div>
+        <div style="font-size:28px;font-weight:700;color:#10b981;letter-spacing:-0.02em">$${totalPaid.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <div style="color:#364f6e;font-size:10.5px;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em">Outstanding</div>
+        <div style="font-size:28px;font-weight:700;color:#ef4444;letter-spacing:-0.02em">$${totalOutstanding.toLocaleString()}</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Due Date</th><th>Subtotal</th><th>Tax</th><th>Total</th><th>Paid</th><th>Status</th></tr></thead>
+        <tbody>
+          ${DATA.invoices.map(inv => {
+            const client = getClient(inv.clientId);
+            return `<tr>
+              <td style="font-family:monospace;font-weight:650;color:#e8f1ff;font-size:12px">${inv.number}</td>
+              <td style="color:#c4d6ef;font-weight:500">${client?.name||''}</td>
+              <td style="color:#4a6a8a">${inv.date}</td>
+              <td style="color:#4a6a8a">${inv.dueDate}</td>
+              <td style="color:#c4d6ef">$${inv.subtotal.toLocaleString()}</td>
+              <td style="color:#364f6e">$${inv.tax.toLocaleString()}</td>
+              <td style="font-weight:650;color:#e8f1ff">$${inv.total.toLocaleString()}</td>
+              <td style="color:${inv.paid>=inv.total?'#10b981':'#ef4444'};font-weight:650">$${inv.paid.toLocaleString()}</td>
+              <td>${statusBadge(inv.status)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================
+// INIT
+// ============================================
+render();
+</script>
+</body>
+</html>
